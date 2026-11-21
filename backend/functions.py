@@ -1,0 +1,125 @@
+from datetime import datetime, timedelta, timezone
+from typing import Optional
+
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, create_engine
+from sqlalchemy.orm import Session, declarative_base
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError
+import jwt
+from fastapi import HTTPException, Header
+
+DB_PATH = "notes.db"
+engine = create_engine(f"sqlite:///{DB_PATH}")
+Base = declarative_base()
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String, nullable=False)
+    email = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+class Note(Base):
+    __tablename__ = "notes"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    title = Column(String, nullable=False)
+    content = Column(String, nullable=False)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+
+Base.metadata.create_all(engine)
+
+ACCESS_TOKEN_EXPIRY = 15
+REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 
+SECRET_KEY = "atria-projects"
+ALGORITHM = "HS256"
+ph = PasswordHasher()
+
+
+def create_token(user_id: int, email: str, username: str, token_type: str = "access"):
+    expiry_minutes = ACCESS_TOKEN_EXPIRY if token_type == "access" else REFRESH_TOKEN_EXPIRY
+    payload = {
+        "user_id": user_id,
+        "email": email,
+        "username": username,
+        "token_type": token_type,
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=expiry_minutes),
+    }
+    return jwt.encode(payload=payload, key=SECRET_KEY, algorithm=ALGORITHM)
+
+
+def verify_token(token: str, token_type: str = "access"):
+    if not token:
+        return None
+    token_str = token.strip()
+    if token_str.startswith("Bearer "):
+        token_str = token_str[7:].strip()
+    try:
+        payload = jwt.decode(jwt=token_str, key=SECRET_KEY, algorithms=[ALGORITHM])
+    except Exception:
+        return None
+
+    if payload.get("token_type") == token_type:
+        return {
+            "user_id": payload.get("user_id"),
+            "email": payload.get("email"),
+            "username": payload.get("username"),
+        }
+    return None
+
+
+def get_current_user(
+    authorization: Optional[str] = Header(None),
+    token: Optional[str] = Header(None),
+):
+    raw_token = token or authorization
+    if not raw_token or not raw_token.strip():
+        raise HTTPException(status_code=401, detail="Accessing notes without authentication")
+
+    user_info = verify_token(raw_token, token_type="access")
+    if not user_info:
+        raise HTTPException(status_code=401, detail="Using an invalid or expired access token")
+    return user_info
+
+
+def verify_login(email: str, password: str):
+    session = Session(engine)
+    user = session.query(User).filter(User.email == email).first()
+    if not user:
+        session.close()
+        return None
+
+    try:
+        ph.verify(user.hashed_password, password)
+    except VerifyMismatchError:
+        session.close()
+        return None
+
+    user_id = user.id
+    email_val = user.email
+    username_val = user.username
+    session.close()
+
+    access_token = create_token(user_id=user_id, email=email_val, username=username_val, token_type="access")
+    refresh_token = create_token(user_id=user_id, email=email_val, username=username_val, token_type="refresh")
+
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer",
+        "token": {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+        },
+        "user": {
+            "id": user_id,
+            "username": username_val,
+            "email": email_val,
+        },
+    }
