@@ -123,3 +123,62 @@ def verify_login(email: str, password: str):
             "email": email_val,
         },
     }
+# A3
+def refresh(refresh_token):
+    user = verify_token(token=refresh_token, token_type="refresh")
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+
+    access_token = create_token(
+        user_id=user["user_id"],
+        email=user["email"],
+        username=user["username"],
+        token_type="access",
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
+from functions import *
+
+# E1
+def get_notes(user_id):
+    session = Session(engine)
+    notes = session.query(Note).filter(Note.user_id == user_id).all()
+    response = [
+        {
+            "id": note.id,
+            "user_id": note.user_id,
+            "title": note.title,
+            "content": note.content,
+            "created_at": note.created_at.isoformat() if note.created_at else None,
+        }
+        for note in notes
+    ]
+    session.close()
+    return response
+
+# E2
+from functions import *
+from fastapi import HTTPException
+
+
+def create_note(user_id, title, content):
+    if not title or not content:
+        raise HTTPException(status_code=422, detail="Title and content are required")
+
+    session = Session(engine)
+    new_note = Note(
+        user_id=user_id,
+        title=title,
+        content=content,
+    )
+    session.add(new_note)
+    session.commit()
+    response = {
+        "id": new_note.id,
+        "user_id": new_note.user_id,
+        "title": new_note.title,
+        "content": new_note.content,
+        "created_at": new_note.created_at.isoformat() if new_note.created_at else None,
+    }
+    session.close()
+    return response
