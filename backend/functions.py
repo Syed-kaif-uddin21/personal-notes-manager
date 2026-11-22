@@ -123,6 +123,44 @@ def verify_login(email: str, password: str):
             "email": email_val,
         },
     }
+#A1
+
+def register(username, email=None, password=None):
+    if hasattr(username, "username"):
+        email = username.email
+        password = username.password
+        username = username.username
+
+    session = Session(engine)
+    user_exist = session.query(User).filter(User.email == email).first()
+    if user_exist is not None:
+        session.close()
+        raise HTTPException(status_code=409, detail="Email already exists")
+
+    new_user = User(
+        username=username,
+        email=email,
+        hashed_password=ph.hash(password),
+    )
+    session.add(new_user)
+    session.commit()
+    session.close()
+    return {"message": "User registered successfully"}
+
+register_user = register
+
+
+
+#A2
+
+def login(email, password):
+    tokens = verify_login(email=email, password=password)
+    if not tokens:
+        raise HTTPException(status_code=401, detail="Incorrect email or password")
+    return tokens
+
+
+
 # A3
 def refresh(refresh_token):
     user = verify_token(token=refresh_token, token_type="refresh")
