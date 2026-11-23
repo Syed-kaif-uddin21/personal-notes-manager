@@ -35,14 +35,14 @@ def refresh(refresh_token: str = Body(), token=Header(None)):
 
 
 #E1
-@app.get("/get_notes")
+@app.get("/get-notes")
 def get_notes(token=Header(None)):
     user = functions.get_current_user(token=token)
     return functions.get_notes(user_id=user["user_id"])
 
 
 #E2
-@app.post("/create_note")
+@app.post("/create-note")
 def create_note(
     title: str = Body(),
     content: str = Body(),
