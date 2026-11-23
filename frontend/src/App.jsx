@@ -20,10 +20,10 @@ function App() {
 
   function loadNotes() {
     if (!token) return;
-    fetch(`${API_URL}/notes`, {
+    fetch(`${API_URL}/get_notes`, {
       method: "GET",
       headers: {
-        Authorization: `Bearer ${token}`,
+        token: token
       },
     })
       .then((res) => res.json())

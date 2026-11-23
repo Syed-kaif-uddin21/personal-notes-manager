@@ -16,29 +16,29 @@ app.add_middleware(
 #A1
 @app.post("/register")
 def register(username: str = Body(), email: str = Body(), password: str = Body()):
-    return function. register(username=username, email=email, password=password)
+    return functions.register(username=username, email=email, password=password)
 
 
 #A2 
 @app.post("/login" )
 def login(email: str = Body(), password: str = Body()):
-    return function. login(email=email, password=password)
+    return functions.login(email=email, password=password)
 
 
 #A3
 @app.post("/refresh")
-def refresh(refresh_token: str = Body(None, embed=True), token=Header(None)):
+def refresh(refresh_token: str = Body(), token=Header(None)):
     token_to_use = refresh_token or token
     if not token_to_use:
         raise HTTPException(status_code=401, detail="Refresh token required")
-    return function. refresh(token_to_use)
+    return functions.refresh(token_to_use)
 
 
 #E1
 @app.get("/get_notes")
-def get_notes(token=Header(None), authorization=Header(None)):
-    user = functions.get_current_user(authorization=authorization, token=token)
-    return function. get_notes(user_id=user["user_id"])
+def get_notes(token=Header(None)):
+    user = functions.get_current_user(token=token)
+    return functions.get_notes(user_id=user["user_id"])
 
 
 #E2
@@ -46,8 +46,7 @@ def get_notes(token=Header(None), authorization=Header(None)):
 def create_note(
     title: str = Body(),
     content: str = Body(),
-    token=Header(None),
-    authorization=Header(None),
+    token=Header(None)
 ):
-    user = functions.get_current_user(authorization=authorization, token=token)
-    return function.create_note(user_id=user["user_id"], title=title, content=content)
+    user = functions.get_current_user(token=token)
+    return functions.create_note(user_id=user["user_id"], title=title, content=content)

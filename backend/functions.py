@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-
+import os
 from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, create_engine
 from sqlalchemy.orm import Session, declarative_base
 from argon2 import PasswordHasher
@@ -8,7 +8,9 @@ from argon2.exceptions import VerifyMismatchError
 import jwt
 from fastapi import HTTPException, Header
 
-DB_PATH = "notes.db"
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_PATH = os.path.join(BASE_DIR, "notes.db")
 engine = create_engine(f"sqlite:///{DB_PATH}")
 Base = declarative_base()
 
@@ -75,10 +77,9 @@ def verify_token(token: str, token_type: str = "access"):
 
 
 def get_current_user(
-    authorization: Optional[str] = Header(None),
     token: Optional[str] = Header(None),
 ):
-    raw_token = token or authorization
+    raw_token = token
     if not raw_token or not raw_token.strip():
         raise HTTPException(status_code=401, detail="Accessing notes without authentication")
 
@@ -112,24 +113,10 @@ def verify_login(email: str, password: str):
     return {
         "access_token": access_token,
         "refresh_token": refresh_token,
-        "token_type": "bearer",
-        "token": {
-            "access_token": access_token,
-            "refresh_token": refresh_token,
-        },
-        "user": {
-            "id": user_id,
-            "username": username_val,
-            "email": email_val,
-        },
     }
 #A1
 
-def register(username, email=None, password=None):
-    if hasattr(username, "username"):
-        email = username.email
-        password = username.password
-        username = username.username
+def register(username, email, password):
 
     session = Session(engine)
     user_exist = session.query(User).filter(User.email == email).first()
@@ -146,9 +133,6 @@ def register(username, email=None, password=None):
     session.commit()
     session.close()
     return {"message": "User registered successfully"}
-
-register_user = register
-
 
 
 #A2
@@ -175,8 +159,6 @@ def refresh(refresh_token):
     )
     return {"access_token": access_token, "token_type": "bearer"}
 
-from functions import *
-
 # E1
 def get_notes(user_id):
     session = Session(engine)
@@ -187,7 +169,7 @@ def get_notes(user_id):
             "user_id": note.user_id,
             "title": note.title,
             "content": note.content,
-            "created_at": note.created_at.isoformat() if note.created_at else None,
+            "created_at": note.created_at
         }
         for note in notes
     ]
@@ -195,10 +177,6 @@ def get_notes(user_id):
     return response
 
 # E2
-from functions import *
-from fastapi import HTTPException
-
-
 def create_note(user_id, title, content):
     if not title or not content:
         raise HTTPException(status_code=422, detail="Title and content are required")
@@ -208,6 +186,7 @@ def create_note(user_id, title, content):
         user_id=user_id,
         title=title,
         content=content,
+        created_at=datetime.now(),
     )
     session.add(new_note)
     session.commit()
@@ -216,7 +195,7 @@ def create_note(user_id, title, content):
         "user_id": new_note.user_id,
         "title": new_note.title,
         "content": new_note.content,
-        "created_at": new_note.created_at.isoformat() if new_note.created_at else None,
+        "created_at": new_note.created_at,
     }
     session.close()
     return response
