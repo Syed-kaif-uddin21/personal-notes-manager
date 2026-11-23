@@ -22,10 +22,10 @@ A full-stack personal notes management web application built with a **FastAPI + 
 ## 2. Live App
 
 - **Live Application / API Base URL:**  
-  [http://15.207.112.95::8001](http://15.252.243.198:8001)
+  [http://15.207.112.95:8001](http://15.207.112.95:8001)
 
 - **Interactive Swagger Documentation:**  
-  [http://15.207.112.95::8001/docs](http://15.252.243.198:8001/docs)
+  [http://15.207.112.95:8001/docs](http://15.207.112.95:8001/docs)
 
 ---
 
@@ -41,10 +41,8 @@ A full-stack personal notes management web application built with a **FastAPI + 
 2. Create and activate a virtual environment:
    ```bash
    python -m venv .venv
-   # Windows (PowerShell):
+   
    .\.venv\Scripts\Activate.ps1
-   # macOS/Linux:
-   source .venv/bin/activate
    ```
 
 3. Install required dependencies:
