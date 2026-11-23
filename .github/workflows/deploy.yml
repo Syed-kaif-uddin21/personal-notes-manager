@@ -1,0 +1,58 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/personal-notes-managment
+      VERSION: v${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ env.VERSION }}
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+            sudo systemctl enable --now docker
+            sudo usermod -aG docker $USER || true
+            sudo docker pull ${{ env.IMAGE }}:${{ env.VERSION }}
+            sudo docker rm -f personal-notes-managment || true
+
+            # Persistent SQLite database storage (PRD Section 7)
+            mkdir -p /home/$USER/notes-data
+            touch /home/$USER/notes-data/notes.db
+
+            sudo docker run -d \
+              --name personal-notes-managment \
+              --restart unless-stopped \
+              -p 8001:8001 \
+              -v /home/$USER/notes-data/notes.db:/app/notes.db \
+              ${{ env.IMAGE }}:${{ env.VERSION }}
+
+            sudo docker image prune -af
+            sudo docker ps --filter name=personal-notes-managment
