@@ -39,7 +39,7 @@ Base.metadata.create_all(engine)
 
 ACCESS_TOKEN_EXPIRY = 15
 REFRESH_TOKEN_EXPIRY = 7 * 24 * 60 
-SECRET_KEY = "atria-projects"
+SECRET_KEY = os.environ.get("SECRET_KEY")
 ALGORITHM = "HS256"
 ph = PasswordHasher()
 

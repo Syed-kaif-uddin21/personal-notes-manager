@@ -40,17 +40,26 @@ jobs:
             set -e
             sudo systemctl enable --now docker
             sudo usermod -aG docker $USER || true
+
+            # Pull latest image
             sudo docker pull ${{ env.IMAGE }}:${{ env.VERSION }}
+
+            # Free port 8001 and remove existing container
+            sudo docker rm -f $(sudo docker ps -q --filter "publish=8001") || true
             sudo docker rm -f personal-notes-managment || true
+            sudo fuser -k 8001/tcp || true
 
             # Persistent SQLite database storage (PRD Section 7)
             mkdir -p /home/$USER/notes-data
             touch /home/$USER/notes-data/notes.db
+            sudo chmod -R 777 /home/$USER/notes-data
 
+            # Run container with SECRET_KEY environment variable injected
             sudo docker run -d \
               --name personal-notes-managment \
               --restart unless-stopped \
               -p 8001:8001 \
+              -e SECRET_KEY="${{ secrets.SECRET_KEY }}" \
               -v /home/$USER/notes-data/notes.db:/app/notes.db \
               ${{ env.IMAGE }}:${{ env.VERSION }}
 

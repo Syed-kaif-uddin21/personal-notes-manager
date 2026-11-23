@@ -11,3 +11,8 @@ __pycache__/
 # SQLite databases
 *.db
 *.sqlite3
+
+# Environment variables
+.env
+*.env
+
